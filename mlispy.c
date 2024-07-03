@@ -748,6 +748,15 @@ lval *builtin_lambda_dynamic(lenv *e, lval *a){
   return builtin_lambda(e, a, "dynamic");
 }
 // logical
+lval *builtin_nand(lenv *e, lval *a){
+  LASSERT_NUM("nand", a, 2);
+  LASSERT_TYPE("nand", a, 0, LVAL_BOOL);
+  LASSERT_TYPE("nand", a, 1, LVAL_BOOL);
+
+  bool res = !(a->cell[0]->bval && a->cell[1]->bval);
+  lval_del(a);
+  return lval_bool(res);
+}
 lval *builtin_ord(lenv *e, lval *a, char *op){
   LASSERT_NUM(op, a, 2);
   LASSERT_TYPE(op, a, 0, LVAL_NUM);
@@ -777,13 +786,6 @@ lval* builtin_le(lenv* e, lval* a) {
 lval *builtin_equal(lenv *e, lval *a){
   LASSERT_NUM("equal?", a, 2);
   lval *ret = lval_bool(lval_eq(a->cell[0], a->cell[1]));
-  lval_del(a);
-  return ret;
-}
-lval *builtin_not(lenv *e, lval *a){
-  LASSERT_NUM("not", a, 1);
-  LASSERT_TYPE("not", a, 0, LVAL_BOOL);
-  lval *ret = lval_bool(!a->cell[0]->bval);
   lval_del(a);
   return ret;
 }
@@ -889,6 +891,15 @@ lval* lval_join(lval* x, lval* y) {
   return x;
 }
 lval *lval_call(lenv *e, lval *f, lval *a){
+  // Stack checking
+  int stack;
+  uintptr_t s_add = (uintptr_t)(&stack);
+  if(first_stack == (uintptr_t)NULL) first_stack = s_add;
+  if((first_stack > s_add && first_stack - s_add > MAX_STACK)
+      || (s_add > first_stack && s_add - first_stack > MAX_STACK)){
+    return lval_err("Stack overflow");
+  }
+
 
   if(f->builtin) return f->builtin(e, a); // builtin function
 
@@ -1000,7 +1011,6 @@ void lenv_add_builtins(lenv* e) {
   lenv_add_builtin(e, "\\", builtin_lambda_lexical);
   lenv_add_builtin(e, "\\d", builtin_lambda_dynamic);
   lenv_add_builtin(e, "equal?", builtin_equal);
-  lenv_add_builtin(e, "not", builtin_not);
   lenv_add_builtin(e, "if", builtin_if);
   lenv_add_builtin(e, "+", builtin_add);
   lenv_add_builtin(e, "-", builtin_sub);
@@ -1014,6 +1024,8 @@ void lenv_add_builtins(lenv* e) {
   lenv_add_builtin(e, "load", builtin_load_lib);
   lenv_add_builtin(e, "print", builtin_print);
   lenv_add_builtin(e, "error", builtin_error);
+  lenv_add_builtin(e, "nand", builtin_nand);
+
 }
 
 
@@ -1021,6 +1033,7 @@ int main(int argc, char **argv){
   // Resource limits
   struct rlimit limit;
   limit.rlim_cur = MAX_STACK * 2;
+  limit.rlim_max = MAX_STACK * 2;
   setrlimit(RLIMIT_STACK, &limit);
 
   // Parser
@@ -1035,21 +1048,21 @@ int main(int argc, char **argv){
 	Lispy   = mpc_new("lispy");
 
 	mpca_lang(MPCA_LANG_DEFAULT,
-	"                                                      \
-		number  : /-?[0-9]+/ ;                               \
-    bool    : \"true\" | \"false\" ;                     \
-		symbol  : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&^#$%@~?]+/    \
-            | \"list\" | \"car\" | \"cdr\"               \
-            | \"join\" | \"eval\" | \"cons\"             \
-            | \"define\"   ;                             \
-		string  : /\"(\\\\.|[^\"])*\"/ ;                     \
-    comment : /;[^\\r\\n]*/ ;                            \
-    sexpr   : '(' <expr>* ')' ;                          \
-		qexpr   : '\'' '(' <expr>* ')' ;                     \
-		expr    : <bool> | <number> | <symbol>               \
-            | <qexpr> | <sexpr> | <string>               \
-            | <comment> ;                                \
-		lispy   : /^/ <expr>* /$/ ;                          \
+	"                                                         \
+		number  : /-?[0-9]+/ ;                                  \
+    bool    : \"true\" | \"false\" ;                        \
+		symbol  : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&^#$%@~?\\.]+/    \
+            | \"list\" | \"car\" | \"cdr\"                  \
+            | \"join\" | \"eval\" | \"cons\"                \
+            | \"define\"   ;                                \
+		string  : /\"(\\\\.|[^\"])*\"/ ;                        \
+    comment : /;[^\\r\\n]*/ ;                               \
+    sexpr   : '(' <expr>* ')' ;                             \
+		qexpr   : '\'' '(' <expr>* ')' ;                        \
+		expr    : <bool> | <number> | <symbol>                  \
+            | <qexpr> | <sexpr> | <string>                  \
+            | <comment> ;                                   \
+		lispy   : /^/ <expr>* /$/ ;                             \
 	",
 	Number, Bool, Symbol, String, Comment, Sexpr, Qexpr, Expr, Lispy);
   // create lenv
@@ -1078,6 +1091,8 @@ int main(int argc, char **argv){
 	puts("MLispy Version 0.0.0.0.1");
 	puts("Press Ctrl+C to exit\n");
 
+  lenv_def(e, lval_sym("_"), lval_qexpr(NULL));
+
 	while(1){
 
 		char *input = readline("mlispy> ");
@@ -1095,7 +1110,8 @@ int main(int argc, char **argv){
 
         lval* x = lval_eval(e, r_out[i]);
         lval_println(x);
-        lval_del(x);
+        lenv_def(e, lval_sym("_"), x);
+        // lval_del(x);
       }
       free(r_out);
       mpc_ast_delete(r.output);

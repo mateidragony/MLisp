@@ -1,7 +1,23 @@
+;; Arithmetic functions
 (define add1 (\ (x) (+ 1 x)))
 (define sub1 (\ (x) (- x 1)))
+;; List functions
 (define null? (\ (x) (equal? x '())))
+;; Lambda calculus
 (define I (\ (x) x))
 (define Omega (\ () ((\ (x) (x x)) (\ (x) (x x)))))
+;; Logical opertators
+(define not (\ (x) (nand x x)))
+(define and (\ (x y) (not (nand x y))))
+(define or (\ (x y) (nand (not x) (not y))))
+;; Constants and renames
 (define null '())
 (define lambda \)
+
+(define fib (\ (x) 
+            (if (<= x 0) 
+                0 
+                (if (equal? x 1) 
+                    1 
+                    (+ (fib (sub1 x)) 
+                       (fib (sub1 (sub1 x))))))))
