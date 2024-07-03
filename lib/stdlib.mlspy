@@ -1,0 +1,7 @@
+(define add1 (\ (x) (+ 1 x)))
+(define sub1 (\ (x) (- x 1)))
+(define null? (\ (x) (equal? x '())))
+(define I (\ (x) x))
+(define Omega (\ () ((\ (x) (x x)) (\ (x) (x x)))))
+(define null '())
+(define lambda \)

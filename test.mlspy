@@ -1,0 +1,16 @@
+(define fib (\ (x) 
+            (if (<= x 0) 
+                0 
+                (if (equal? x 1) 
+                    1 
+                    (+ (fib (sub1 x)) 
+                       (fib (sub1 (sub1 x))))))))
+
+(fib 10)
+
+(define len (\ (l)
+                (if (null? l)
+                    0
+                    (add1 (len (cdr l))))))
+
+(len '(1 2 3 4))
