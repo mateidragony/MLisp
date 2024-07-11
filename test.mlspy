@@ -1,16 +1,51 @@
-(define fib (\ (x) 
-            (if (<= x 0) 
-                0 
-                (if (equal? x 1) 
-                    1 
-                    (+ (fib (sub1 x)) 
-                       (fib (sub1 (sub1 x))))))))
 
-(fib 10)
 
-(define len (\ (l)
-                (if (null? l)
-                    0
-                    (add1 (len (cdr l))))))
+;; (define def-cars/cdrs (\ (n)
+;;     (begin
+;;         (= cars/cdrs (\ (s f n)
+;;             (if (zero? n)
+;;                 ()
+;;                 (begin
+;;                     (if (equal? s "c")
+;;                         ()
+;;                         (begin
+;;                             (eval `(define ,(string->symbol (string-append s "ar")) ,(\ (x) (f (car x))) ))
+;;                             (eval `(define ,(string->symbol (string-append s "dr")) ,(\ (x) (f (cdr x)))))))
+;;                     (cars/cdrs 
+;;                         (string-append s "a") 
+;;                         (\ (x) (f (car x))) 
+;;                         (sub1 n))
+;;                     (cars/cdrs 
+;;                         (string-append s "d") 
+;;                         (\ (x) (f (cdr x)))
+;;                         (sub1 n))))))
+;;         (cars/cdrs "c" (\ (x) x) n))))
 
-(len '(1 2 3 4))
+
+(define def-cars/cdrs (\ (n)
+    (begin
+        (= cars/cdrs (\ (s f n)
+            (if (zero? n)
+                ()
+                (begin
+                    (if (or (equal? s "c") (equal? s "ca") (equal? s "cd")) ;; don't define cr car or cdr
+                        ()
+                        (eval `(define ,(string->symbol (string-append s "r")) ,f)))
+                    (cars/cdrs 
+                        (string-append s "a") 
+                        (\ (x) (f (car x))) 
+                        (sub1 n))
+                    (cars/cdrs 
+                        (string-append s "d") 
+                        (\ (x) (f (cdr x)))
+                        (sub1 n))))))
+        (cars/cdrs "c" (\ (x) x) n))))
+(def-cars/cdrs 4)
+
+(= test '('(1 2) 2 3))
+test
+(car test)
+(car (car test))
+(cdr (car test))
+
+(cdar test)

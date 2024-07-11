@@ -1,23 +1,80 @@
-;; Arithmetic functions
-(define add1 (\ (x) (+ 1 x)))
-(define sub1 (\ (x) (- x 1)))
-;; List functions
-(define null? (\ (x) (equal? x '())))
-;; Lambda calculus
-(define I (\ (x) x))
-(define Omega (\ () ((\ (x) (x x)) (\ (x) (x x)))))
-;; Logical opertators
-(define not (\ (x) (nand x x)))
-(define and (\ (x y) (not (nand x y))))
-(define or (\ (x y) (nand (not x) (not y))))
 ;; Constants and renames
 (define null '())
 (define lambda \)
-
-(define fib (\ (x) 
-            (if (<= x 0) 
-                0 
-                (if (equal? x 1) 
-                    1 
-                    (+ (fib (sub1 x)) 
-                       (fib (sub1 (sub1 x))))))))
+(define else true)
+;; Function functions
+(define unpack (\ (f xs) (eval (cons f xs))))
+;; Arithmetic functions
+(define add1 (\ (x) (+ 1 x)))
+(define sub1 (\ (x) (- x 1)))
+(define zero? (\ (x) (equal? x 0)))
+;; Logical opertators
+(define not (\ (x) (nand x x)))
+(define and1 (\ (x y) (not (nand x y))))
+(define or1 (\ (x y) (nand (not x) (not y))))
+(define and (\ (& xs) 
+                (cond
+                    ((null? xs) true)
+                    ((null? (cdr xs))  (car xs))
+                    (else (and1 (car xs) (unpack and (cdr xs)))))))
+(define or (\ (& xs)
+                (cond
+                    ((null? xs) false)
+                    ((null? (cdr xs)) (car xs))
+                    (else (or1 (car xs) (unpack or (cdr xs)))))))
+;; List functions
+(define null? (\ (x) (equal? x '())))
+(define len (\ (l)
+                (if (null? l)
+                    0
+                    (add1 (len (cdr l))))))
+(define map (\ (f l)
+            (if (null? l)
+                '()
+                (cons (f (car l)) (map f (cdr l))))))
+(define filter (\ (f l)
+                (if (null? l)
+                    '()
+                    (if (f (car l))
+                        (cons (car l) (filter f (cdr l)))
+                        (filter f (cdr l))))))
+(define foldr (\ (f z l)
+                    (if (null? l)
+                        z
+                        (f (car l) (foldr f z (cdr l))))))
+(define foldl (\ (f z l)
+                    (if (null? l)
+                        z
+                        (f (foldl f z (cdr l)) (car l)))))
+(define reverse (\ (l)
+                    (begin
+                        (= reverse-helper (\ (ls)
+                                            (if (null? ls)
+                                                (cons '() l)
+                                                (begin
+                                                    (= ret (reverse-helper (cdr ls)))
+                                                    (cons (cons (cadr ret) (car ret)) 
+                                                          (cddr ret))))))
+                        (car (reverse-helper l)))))
+(define def-cars/cdrs (\ (n)
+    (begin
+        (= cars/cdrs (\ (s f n)
+            (if (zero? n)
+                ()
+                (begin
+                    (if (or (equal? s "c") (equal? s "ca") (equal? s "cd")) ;; don't define cr car or cdr
+                        ()
+                        (eval `(define ,(string->symbol (string-append s "r")) ,f)))
+                    (cars/cdrs 
+                        (string-append s "a") 
+                        (\ (x) (f (car x))) 
+                        (sub1 n))
+                    (cars/cdrs 
+                        (string-append s "d") 
+                        (\ (x) (f (cdr x)))
+                        (sub1 n))))))
+        (cars/cdrs "c" (\ (x) x) n))))
+(def-cars/cdrs 10)
+;; Lambda calculus
+(define I (\ (x) x))
+(define Omega (\ () ((\ (x) (x x)) (\ (x) (x x)))))
